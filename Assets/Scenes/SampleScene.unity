@@ -778,9 +778,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PhysicsRope
   objectA: {fileID: 2110197485}
   objectB: {fileID: 1960751926}
-  segmentCount: 5
+  segmentsPerUnit: 5
   ropeWidth: 0.1
-  ropeLength: 5
   segmentMass: 0.1
   drag: 1
   objectBKinematicTime: 1

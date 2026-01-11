@@ -24,10 +24,18 @@ public class home : MonoBehaviour
     [SerializeField] private float initialHomeDuration = 2f; // 시작 시 home 이동 시간
     [SerializeField] private float homeRotationDuration = 1f; // k초: home 도착 후 회전 복귀 시간
 
+    [Header("인형 잡기 설정")]
+    [SerializeField] private Transform grabPoint; // 인형을 잡을 위치
+    [SerializeField] private float grabChance = 50f; // 잡을 확률 (%)
+    [SerializeField] private float dropCheckInterval = 0.5f; // 떨어질 확률 체크 간격
+    [SerializeField] private float dropChance = 15f; // 떨어질 확률 (%)
+
     private int currentSpotIndex = 0;
     private bool isMoving = false;
     private float objectAInitialY;
     private Rigidbody objectBRb;
+    private GameObject grabbedDoll = null; // 잡은 인형
+    private Rigidbody grabbedDollRb = null;
 
     // 다른 스크립트에서 home 작동 중인지 확인용
     public bool IsMoving => isMoving;
@@ -171,7 +179,7 @@ public class home : MonoBehaviour
             }
         }
 
-        // 2. m초 대기 + 오브젝트들 X회전 -35로
+        // 2. m초 대기 + 오브젝트들 X회전 -35로 (오므리기)
         if (rotatingObjects != null && rotatingObjects.Length > 0)
         {
             float elapsed = 0f;
@@ -199,6 +207,9 @@ public class home : MonoBehaviour
                     rotatingObjects[i].eulerAngles = new Vector3(-35f, fullRotations[i].y, fullRotations[i].z);
             }
         }
+
+        // 오므린 후 인형 잡기 시도
+        TryGrabDoll();
 
         // 3. objectA의 최초 y좌표로 이동 (X회전 -35 유지)
         if (objectA != null)
@@ -258,6 +269,8 @@ public class home : MonoBehaviour
 
     private IEnumerator MoveToSpots()
     {
+        float dropTimer = 0f;
+
         while (currentSpotIndex < spots.Length)
         {
             Transform targetSpot = spots[currentSpotIndex];
@@ -272,12 +285,88 @@ public class home : MonoBehaviour
             while (Vector3.Distance(transform.position, targetPos) > arrivalThreshold)
             {
                 transform.position = Vector3.MoveTowards(transform.position, targetPos, moveSpeed * Time.deltaTime);
+
+                // 잡은 인형 위치 업데이트
+                UpdateGrabbedDollPosition();
+
+                // 떨어질 확률 체크
+                dropTimer += Time.deltaTime;
+                if (dropTimer >= dropCheckInterval)
+                {
+                    dropTimer = 0f;
+                    if (grabbedDoll != null && Random.Range(0f, 100f) < dropChance)
+                    {
+                        DropDoll();
+                    }
+                }
+
                 yield return null;
             }
 
             currentSpotIndex++;
         }
-
+        DropDoll();
         Debug.Log("모든 Spot 순회 완료!");
+    }
+
+    private void TryGrabDoll()
+    {
+        if (grabPoint == null) return;
+
+        // grabPoint 주변의 doll 태그 오브젝트 찾기
+        Collider[] colliders = Physics.OverlapSphere(grabPoint.position, 0.5f);
+        foreach (Collider col in colliders)
+        {
+            if (col.CompareTag("doll"))
+            {
+                // 확률 체크
+                if (Random.Range(0f, 100f) < grabChance)
+                {
+                    // 인형 잡기 성공
+                    grabbedDoll = col.gameObject;
+                    grabbedDollRb = grabbedDoll.GetComponent<Rigidbody>();
+
+                    if (grabbedDollRb != null)
+                    {
+                        grabbedDollRb.isKinematic = true;
+                        grabbedDollRb.linearVelocity = Vector3.zero;
+                        grabbedDollRb.angularVelocity = Vector3.zero;
+                    }
+
+                    // grabPoint의 자식으로 설정 (월드 스케일 유지)
+                    grabbedDoll.transform.SetParent(grabPoint, true);
+
+                    Debug.Log("인형 잡기 성공!");
+                }
+                else
+                {
+                    Debug.Log("인형 잡기 실패...");
+                }
+                break; // 하나만 잡기
+            }
+        }
+    }
+
+    private void UpdateGrabbedDollPosition()
+    {
+        // 자식으로 설정했으므로 자동으로 따라감 - 필요 없음
+    }
+
+    private void DropDoll()
+    {
+        if (grabbedDoll == null) return;
+
+        Debug.Log("인형 떨어뜨림!");
+
+        // 부모 관계 해제
+        grabbedDoll.transform.SetParent(null);
+
+        if (grabbedDollRb != null)
+        {
+            grabbedDollRb.isKinematic = false;
+        }
+
+        grabbedDoll = null;
+        grabbedDollRb = null;
     }
 }

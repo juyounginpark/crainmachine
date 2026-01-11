@@ -6,22 +6,16 @@ public class move : MonoBehaviour
     public float speed = 5.0f;
 
     private home homeScript;
-    private PhysicsRope ropeScript;
 
     void Start()
     {
         homeScript = GetComponent<home>();
-        ropeScript = FindAnyObjectByType<PhysicsRope>();
     }
 
     void Update()
     {
         // home 작동 중이면 이동 안함
         if (homeScript != null && homeScript.IsMoving)
-            return;
-
-        // objectB가 kinematic이면 이동 안함
-        if (ropeScript != null && ropeScript.IsObjectBKinematic)
             return;
 
         // 키보드 입력 받기 (Input Manager의 Horizontal, Vertical 축 사용)
